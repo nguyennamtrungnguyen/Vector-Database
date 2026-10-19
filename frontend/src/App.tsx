@@ -40,7 +40,7 @@ export default function App() {
           <div className="flex items-center gap-4 text-xs">
             <div className="hidden md:flex items-center gap-1 text-blue-200">
               <ShieldCheck className="w-4 h-4 text-yellow-400" />
-              <span>Ollama Local &bull; Nomic Embed</span>
+              <span>Google Gemini &bull; gemini-embedding-001</span>
             </div>
             <button className="px-3 py-1.5 border border-white/40 hover:border-white rounded text-xs font-semibold transition-colors">
               Đăng ký đối tác
@@ -138,7 +138,7 @@ export default function App() {
             {/* Cột 2: Tìm theo ngữ nghĩa (Vector Database) */}
             <ResultColumn
               title="Tìm theo Ngữ nghĩa"
-              subtitle="Ollama Vector Search — Hiểu ý nghĩa ngữ cảnh"
+              subtitle="Gemini Vector Search — Hiểu ý nghĩa ngữ cảnh"
               mode="semantic"
               data={semanticResult.data}
               isLoading={semanticResult.isFetching}
@@ -155,7 +155,7 @@ export default function App() {
           <div>
             <div className="font-bold text-sm text-white mb-1">MEGO Hotel Search Platform</div>
             <p className="text-gray-400 text-[11px]">
-              Prototype nghiên cứu giải pháp Vector Database & RAG &bull; Spring AI + Ollama + React
+              Prototype nghiên cứu giải pháp Vector Database & RAG &bull; Spring AI + Gemini + React
             </p>
           </div>
           <div className="text-[11px] text-gray-400">

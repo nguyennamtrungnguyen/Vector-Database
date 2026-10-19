@@ -1,6 +1,6 @@
-# MEGO Hotel Search Demo 🏨 (Ollama Local Miễn Phí)
+# MEGO Hotel Search Demo 🏨 (Google Gemini Embedding)
 
-Demo ứng dụng tìm kiếm khách sạn bằng **Vector Database** — so sánh trực tiếp tìm kiếm ngữ nghĩa (Vector Search) với tìm theo từ khóa (SQL LIKE), chạy hoàn toàn **Local miễn phí qua Ollama**, không phụ thuộc OpenAI API.
+Demo ứng dụng tìm kiếm khách sạn bằng **Vector Database** — so sánh trực tiếp tìm kiếm ngữ nghĩa (Vector Search) với tìm theo từ khóa (SQL LIKE), dùng **Gemini Embedding API** (`gemini-embedding-001`) qua Spring AI.
 
 ## Yêu cầu hệ thống
 
@@ -9,33 +9,26 @@ Demo ứng dụng tìm kiếm khách sạn bằng **Vector Database** — so sá
 | Java | 21 |
 | Node.js | 20+ |
 | npm | 9+ |
-| Ollama | Phiên bản mới nhất trên Windows |
-| Model Embedding | `nomic-embed-text` |
+| Gemini API key | Tạo miễn phí tại Google AI Studio |
 
-## 1. Cài đặt và chuẩn bị Ollama trên Windows
+## 1. Chuẩn bị API key Gemini
 
-### Bước 1: Tải và cài đặt Ollama
-- Truy cập trang chủ: [https://ollama.com/download](https://ollama.com/download)
-- Tải file `OllamaSetup.exe` và tiến hành cài đặt.
-- Sau khi cài xong, Ollama sẽ chạy ngầm dưới khay hệ thống (System Tray).
+### Bước 1: Tạo API key
+- Truy cập [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey), đăng nhập tài khoản Google và bấm **Create API key**.
 
-### Bước 2: Tải Embedding Model
-Mở PowerShell hoặc Command Prompt trên Windows và chạy lệnh:
+### Bước 2: Khai báo key cho backend
+Trong thư mục `backend`, copy file mẫu thành `.env` rồi điền key:
 ```powershell
-ollama pull nomic-embed-text
+cd backend
+copy .env.example .env
 ```
+Nội dung `backend/.env`:
+```properties
+GEMINI_API_KEY=AIza...key-cua-ban
+```
+> File `.env` đã nằm trong `.gitignore`, **không commit** key lên Git. Có thể thay bằng biến môi trường hệ thống: `$env:GEMINI_API_KEY="AIza..."` (PowerShell).
 
-*(Nếu sau này cần dùng thêm Chatbot cục bộ, bạn có thể tải thêm model: `ollama pull qwen2.5:3b`)*.
-
-### Bước 3: Kiểm tra Ollama hoạt động
-Chạy lệnh kiểm tra danh sách model đã tải:
-```powershell
-ollama list
-```
-Kiểm tra endpoint API cục bộ (cổng 11434):
-```powershell
-curl http://localhost:11434/api/tags
-```
+Model embedding sử dụng: `gemini-embedding-001` (768 chiều, hỗ trợ tiếng Việt) — cấu hình trong `application.properties`.
 
 ---
 
@@ -47,7 +40,7 @@ curl http://localhost:11434/api/tags
 cd backend
 .\gradlew.bat bootRun
 ```
-*Lưu ý: Lần khởi động đầu tiên, `HotelDataLoader` sẽ gọi Ollama local để tạo vector embedding cho 25 khách sạn và lưu vào file `data/vector-store.json`. Các lần khởi động tiếp theo sẽ nạp trực tiếp từ file này nên khởi động cực nhanh và không tốn tài nguyên.*
+*Lưu ý: Lần khởi động đầu tiên, `HotelDataLoader` sẽ gọi Gemini API để tạo vector embedding cho 25 khách sạn và lưu vào file `data/vector-store-gemini.json`. Các lần khởi động tiếp theo sẽ nạp trực tiếp từ file này nên khởi động cực nhanh và không tốn tài nguyên.*
 
 - Backend API: http://localhost:8080  
 - Swagger UI tài liệu API: http://localhost:8080/swagger-ui.html
@@ -84,7 +77,7 @@ curl http://localhost:8080/api/hotels
 curl "http://localhost:8080/api/hotels/search?q=rung+thong&mode=keyword&topK=5"
 ```
 
-### Tìm kiếm theo ngữ nghĩa (Vector Search qua Ollama)
+### Tìm kiếm theo ngữ nghĩa (Vector Search qua Gemini)
 ```bash
 curl "http://localhost:8080/api/hotels/search?q=cho+nghi+yen+tinh+giua+nui+rung+hop+cap+doi&mode=semantic&topK=5"
 ```
@@ -108,4 +101,4 @@ curl "http://localhost:8080/api/hotels/H001/similar?topK=5"
 3. `khách sạn sang trọng nhìn ra biển để tổ chức đám cưới`
 4. `ở gần sân bay, tiết kiệm cho người đi công tác`
 
-> Cả 4 câu truy vấn trên khi tìm ở cột **Từ khóa** sẽ trả về 0 kết quả (do mô tả khách sạn dùng từ đồng nghĩa, tránh từ khóa trực tiếp). Ngược lại, cột **Ngữ nghĩa (Ollama)** sẽ tìm ra chính xác các khách sạn phù hợp nhất.
+> Cả 4 câu truy vấn trên khi tìm ở cột **Từ khóa** sẽ trả về 0 kết quả (do mô tả khách sạn dùng từ đồng nghĩa, tránh từ khóa trực tiếp). Ngược lại, cột **Ngữ nghĩa (Gemini)** sẽ tìm ra chính xác các khách sạn phù hợp nhất.

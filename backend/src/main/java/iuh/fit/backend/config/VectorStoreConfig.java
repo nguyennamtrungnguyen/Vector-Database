@@ -13,7 +13,7 @@ import java.io.File;
 /**
  * Cấu hình SimpleVectorStore (in-memory):
  * - Nếu file data/vector-store.json đã tồn tại: load trực tiếp, không tốn thời gian tính toán lại.
- * - Nếu chưa có: khởi tạo rỗng để HotelDataLoader embed qua Ollama local và lưu file.
+ * - Nếu chưa có: khởi tạo rỗng để HotelDataLoader embed qua Gemini API và lưu file.
  */
 @Configuration
 public class VectorStoreConfig {

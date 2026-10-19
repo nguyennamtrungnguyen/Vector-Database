@@ -1,7 +1,10 @@
 HELP.md
 .gradle
 build/
-data/
+/data/
+
+### Secrets ###
+.env
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

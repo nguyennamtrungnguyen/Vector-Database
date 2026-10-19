@@ -6,7 +6,7 @@ import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.ai.google.genai.embedding.api-key=test-key")
 class BackendApplicationTests {
 
 	@MockitoBean

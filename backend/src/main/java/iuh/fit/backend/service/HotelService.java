@@ -85,7 +85,7 @@ public class HotelService {
                     .filter(r -> r != null)
                     .toList();
         } catch (Exception ex) {
-            log.error("Lỗi khi tìm kiếm ngữ nghĩa với Ollama (có thể chưa bật Ollama): {}", ex.getMessage());
+            log.error("Lỗi khi tìm kiếm ngữ nghĩa với Gemini (kiểm tra GEMINI_API_KEY / kết nối mạng): {}", ex.getMessage());
             // Trả về danh sách rỗng thay vì làm sập API và văng lỗi 500
         }
 
