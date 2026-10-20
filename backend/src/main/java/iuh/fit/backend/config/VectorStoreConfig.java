@@ -12,7 +12,7 @@ import java.io.File;
 
 /**
  * Cấu hình SimpleVectorStore (in-memory):
- * - Nếu file data/vector-store.json đã tồn tại: load trực tiếp, không tốn thời gian tính toán lại.
+ * - Nếu file data/vector-store-gemini.json đã tồn tại: load trực tiếp, không tốn thời gian tính toán lại.
  * - Nếu chưa có: khởi tạo rỗng để HotelDataLoader embed qua Gemini API và lưu file.
  */
 @Configuration
@@ -20,7 +20,7 @@ public class VectorStoreConfig {
 
     private static final Logger log = LoggerFactory.getLogger(VectorStoreConfig.class);
 
-    @Value("${app.vector-store.file-path:data/vector-store.json}")
+    @Value("${app.vector-store.file-path:data/vector-store-gemini.json}")
     private String vectorStoreFilePath;
 
     @Bean

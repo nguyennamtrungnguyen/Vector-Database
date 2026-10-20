@@ -2,11 +2,11 @@ package iuh.fit.backend.data;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import iuh.fit.backend.model.Hotel;
+import iuh.fit.backend.entity.HotelEntity;
+import iuh.fit.backend.repository.HotelRepository;
+import iuh.fit.backend.service.HotelVectorIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -20,71 +20,100 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Nạp dữ liệu khách sạn từ hotels.json và tạo vector embedding:
- * - Luôn đọc danh sách khách sạn từ classpath (hotels.json) để phục vụ keyword search.
- * - Nếu file vector store chưa tồn tại: gọi Gemini Embedding API để embed từng khách sạn,
- *   rồi lưu ra file JSON để các lần khởi động sau không phải gọi API lại.
+ * Khởi động ứng dụng và thực hiện 2 nhiệm vụ:
+ * <ol>
+ *   <li>Seed data: Nếu bảng hotels trong MariaDB rỗng → đọc hotels.json và lưu vào DB.</li>
+ *   <li>Build vector: Nếu file vector-store-gemini.json chưa tồn tại → embed tất cả khách sạn
+ *       từ DB qua Gemini API và lưu ra file (cache). Lần sau chỉ load file, không gọi API lại.</li>
+ * </ol>
  */
 @Component
 public class HotelDataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(HotelDataLoader.class);
 
-    private final SimpleVectorStore vectorStore;
-    private final List<Hotel> hotels;
+    private final HotelRepository hotelRepository;
+    private final HotelVectorIndex hotelVectorIndex;
 
-    @Value("${app.vector-store.file-path:data/vector-store.json}")
+    @Value("${app.vector-store.file-path:data/vector-store-gemini.json}")
     private String vectorStoreFilePath;
 
-    public HotelDataLoader(SimpleVectorStore vectorStore) {
-        this.vectorStore = vectorStore;
-        this.hotels = readHotels();
-    }
-
-    public List<Hotel> getAllHotels() {
-        return hotels;
+    public HotelDataLoader(HotelRepository hotelRepository, HotelVectorIndex hotelVectorIndex) {
+        this.hotelRepository = hotelRepository;
+        this.hotelVectorIndex = hotelVectorIndex;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        File file = new File(vectorStoreFilePath);
-        if (file.exists()) {
-            log.info("VectorStore đã có sẵn tại {}, bỏ qua bước embedding.", file.getAbsolutePath());
+        seedDatabaseIfEmpty();
+        buildVectorStoreIfNeeded();
+    }
+
+    // =========================================================
+    // SEED DATABASE
+    // =========================================================
+
+    /**
+     * Nếu bảng hotels rỗng, đọc hotels.json từ classpath và lưu vào MariaDB.
+     */
+    private void seedDatabaseIfEmpty() {
+        if (hotelRepository.count() > 0) {
+            log.info("DB đã có {} khách sạn, bỏ qua bước seed.", hotelRepository.count());
             return;
         }
 
-        log.info("Bắt đầu tạo embedding cho {} khách sạn qua Gemini API...", hotels.size());
-        List<Document> documents = hotels.stream().map(this::toDocument).toList();
-        vectorStore.add(documents);
-
-        File parent = file.getAbsoluteFile().getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            throw new IllegalStateException("Không tạo được thư mục: " + parent);
-        }
-        vectorStore.save(file);
-        log.info("Đã lưu VectorStore vào {}", file.getAbsolutePath());
+        log.info("Bảng hotels rỗng. Bắt đầu seed từ hotels.json...");
+        List<HotelEntity> entities = readHotelsFromJson();
+        hotelRepository.saveAll(entities);
+        log.info("Đã seed {} khách sạn vào MariaDB.", entities.size());
     }
 
     /**
-     * Chuyển Hotel thành Document: nội dung = tên + mô tả + tiện ích, metadata dùng để lọc (hybrid query).
+     * Đọc file hotels.json từ classpath và parse thành danh sách HotelEntity.
      */
-    private Document toDocument(Hotel hotel) {
-        String content = hotel.name() + ". " + hotel.description()
-                + " Tiện ích: " + String.join(", ", hotel.amenities()) + ".";
-        Map<String, Object> metadata = Map.of(
-                "hotelId", hotel.id(),
-                "city", hotel.city(),
-                "price", hotel.price(),
-                "stars", hotel.stars()
-        );
-        return new Document(hotel.id(), content, metadata);
+    private List<HotelEntity> readHotelsFromJson() {
+        try (InputStream in = new ClassPathResource("hotels.json").getInputStream()) {
+            // Parse JSON thành raw Map để tránh phụ thuộc vào Hotel record cũ
+            List<Map<String, Object>> rawList = new ObjectMapper()
+                    .readValue(in, new TypeReference<List<Map<String, Object>>>() {});
+
+            return rawList.stream().map(raw -> {
+                @SuppressWarnings("unchecked")
+                List<String> amenities = (List<String>) raw.getOrDefault("amenities", List.of());
+                return HotelEntity.builder()
+                        .id((String) raw.get("id"))
+                        .name((String) raw.get("name"))
+                        .city((String) raw.get("city"))
+                        .price(((Number) raw.get("price")).longValue())
+                        .stars(((Number) raw.get("stars")).intValue())
+                        .description((String) raw.get("description"))
+                        .amenities(amenities)
+                        .build();
+            }).toList();
+
+        } catch (IOException e) {
+            throw new IllegalStateException("Không đọc được hotels.json: " + e.getMessage(), e);
+        }
     }
 
-    private static List<Hotel> readHotels() {
-        try (InputStream in = new ClassPathResource("hotels.json").getInputStream()) {
-            return List.copyOf(new ObjectMapper().readValue(in, new TypeReference<List<Hotel>>() {}));
-        } catch (IOException e) {
-            throw new IllegalStateException("Không đọc được hotels.json", e);
+    // =========================================================
+    // BUILD VECTOR STORE
+    // =========================================================
+
+    /**
+     * Nếu file vector cache chưa tồn tại, embed tất cả khách sạn từ DB
+     * qua Gemini Embedding API và lưu ra file JSON để cache.
+     */
+    private void buildVectorStoreIfNeeded() {
+        File file = new File(vectorStoreFilePath);
+        if (file.exists()) {
+            log.info("Vector store cache đã có tại {}, bỏ qua bước embedding.", file.getAbsolutePath());
+            return;
         }
+
+        List<HotelEntity> hotels = hotelRepository.findAll();
+        log.info("Bắt đầu tạo embedding cho {} khách sạn qua Gemini API...", hotels.size());
+        hotelVectorIndex.initialize(hotels);
+        log.info("Đã lưu vector store vào {}", file.getAbsolutePath());
     }
 }

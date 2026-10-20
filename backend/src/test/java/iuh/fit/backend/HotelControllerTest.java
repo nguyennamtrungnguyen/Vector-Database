@@ -1,9 +1,8 @@
 package iuh.fit.backend;
 
-import iuh.fit.backend.data.HotelDataLoader;
-import iuh.fit.backend.model.Hotel;
-import iuh.fit.backend.model.SearchResponse;
-import iuh.fit.backend.model.SearchResult;
+import iuh.fit.backend.dto.HotelDTO;
+import iuh.fit.backend.dto.SearchResponseDTO;
+import iuh.fit.backend.dto.SearchResultDTO;
 import iuh.fit.backend.service.HotelService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Unit test Controller với MockMvc và mock Service
+ * Unit test Controller với MockMvc và mock Service (interface).
  */
 @WebMvcTest(controllers = {iuh.fit.backend.controller.HotelController.class,
         iuh.fit.backend.controller.GlobalExceptionHandler.class})
@@ -32,14 +31,11 @@ class HotelControllerTest {
     @MockitoBean
     private HotelService hotelService;
 
-    @MockitoBean
-    private HotelDataLoader hotelDataLoader;
-
-    private Hotel sampleHotel;
+    private HotelDTO sampleHotel;
 
     @BeforeEach
     void setUp() {
-        sampleHotel = new Hotel("H001", "Pine Valley Resort", "Đà Lạt",
+        sampleHotel = new HotelDTO("H001", "Pine Valley Resort", "Đà Lạt",
                 1200000L, 4, "Không gian thanh bình.", List.of("wifi", "spa"));
     }
 
@@ -55,8 +51,8 @@ class HotelControllerTest {
 
     @Test
     void search_keyword_shouldReturnResults() throws Exception {
-        var response = new SearchResponse("keyword", 5L,
-                List.of(new SearchResult(sampleHotel, null)));
+        var response = new SearchResponseDTO("keyword", 5L,
+                List.of(new SearchResultDTO(sampleHotel, null)));
         when(hotelService.keywordSearch(anyString(), anyInt(), any(), any())).thenReturn(response);
 
         mockMvc.perform(get("/api/hotels/search")
@@ -70,8 +66,8 @@ class HotelControllerTest {
 
     @Test
     void search_semantic_shouldReturnResultsWithScore() throws Exception {
-        var response = new SearchResponse("semantic", 120L,
-                List.of(new SearchResult(sampleHotel, 0.87)));
+        var response = new SearchResponseDTO("semantic", 120L,
+                List.of(new SearchResultDTO(sampleHotel, 0.87)));
         when(hotelService.semanticSearch(anyString(), anyInt(), any(), any())).thenReturn(response);
 
         mockMvc.perform(get("/api/hotels/search")
@@ -105,7 +101,7 @@ class HotelControllerTest {
     @Test
     void findSimilar_notFound_shouldReturn404() throws Exception {
         when(hotelService.findSimilar(eq("NOTEXIST"), anyInt()))
-                .thenThrow(new IllegalArgumentException("Hotel not found with id: NOTEXIST"));
+                .thenThrow(new iuh.fit.backend.exception.HotelNotFoundException("NOTEXIST"));
 
         mockMvc.perform(get("/api/hotels/NOTEXIST/similar"))
                 .andExpect(status().isNotFound())
